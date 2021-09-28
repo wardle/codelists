@@ -21,4 +21,7 @@ services together to give more advanced functionality.
 * as a microservice and so can be used as an API by other software written in any language
 * on the command-line, and so can be used for ad-hoc codelist generation as part of your analytics.
 
+The substrate for all codelists is SNOMED CT. That coding system is an ontology and terminology, and not simply a
+classification. That means we can use the relationships within SNOMED CT to derive more complete codelists.
+
 

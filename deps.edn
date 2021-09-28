@@ -1,0 +1,81 @@
+{:paths   ["src" "resources" "classes"]
+
+ :deps    {org.clojure/clojure       {:mvn/version "1.11.0-alpha1"}
+           org.clojure/data.csv      {:mvn/version "1.0.0"}
+           org.clojure/tools.logging {:mvn/version "1.1.0"}
+
+           com.eldrix/dmd            {:git/url "https://github.com/wardle/dmd.git"
+                                      :sha     "292ff180ed7e766d50b63e3557e66c5bc993fb61"}
+           com.eldrix/hermes         {:git/url "https://github.com/wardle/hermes.git"
+                                      :sha     "637c7cb4a1c479ebf0860cbaaa168eaa27965d1a"}}
+
+ :aliases {:dev
+           {:extra-paths ["cmd" "test/src" "test/resources"]}
+
+           :run
+           {:extra-paths ["cmd"]
+            :extra-deps  {org.clojure/tools.cli          {:mvn/version "1.0.206"}
+                          io.pedestal/pedestal.service   {:mvn/version "0.5.9"}
+                          io.pedestal/pedestal.jetty     {:mvn/version "0.5.9"}
+                          ch.qos.logback/logback-classic {:mvn/version "1.2.5"}}
+            :main-opts   ["-m" "com.eldrix.dmd.cli"]
+            :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
+                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"
+                          "--illegal-access=permit"]}
+
+           :socket
+           {:jvm-opts ["-Dclojure.server.repl={:port,50505,:accept,clojure.core.server/repl}"]}
+
+           :test
+           {:extra-paths ["test/src" "test/resources"]
+            :extra-deps  {io.github.cognitect-labs/test-runner {:git/sha "dd6da11611eeb87f08780a30ac8ea6012d4c05ce"}
+                          ch.qos.logback/logback-classic       {:mvn/version "1.2.5"}}
+            :main-opts   ["-m" "cognitect.test-runner"]
+            :exec-fn     cognitect.test-runner.api/test
+            :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
+                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"
+                          "--illegal-access=permit"]}
+
+           :outdated
+           {:extra-deps {com.github.liquidz/antq {:mvn/version "RELEASE"}}
+            :main-opts  ["-m" "antq.core"]}
+
+           :check
+           {:extra-deps {athos/clj-check
+                         {:git/url "https://github.com/athos/clj-check.git"
+                          :sha     "518d5a1cbfcd7c952f548e6dbfcb9a4a5faf9062"}}
+            :main-opts  ["-m" "clj-check.check"]}
+
+           :test/cloverage
+           {:extra-paths ["test/src" "test/resources"]
+            :extra-deps  {cloverage/cloverage {:mvn/version "RELEASE"}}
+            :main-opts   ["-m" "cloverage.coverage"
+                          "--src-ns-path" "src"
+                          "--test-ns-path" "test/src"]
+            :exec-fn     cloverage.coverage/run-project
+            :exec-args   {:src-ns-path  ["src"]
+                          :test-ns-path ["test"]}
+            :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
+                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"
+                          "--illegal-access=permit"]}
+
+           :lint/kondo
+           {:extra-deps {clj-kondo/clj-kondo {:mvn/version "RELEASE"}}
+            :main-opts  ["-m" "clj-kondo.main" "--lint" "src"]}
+
+           :lint/eastwood
+           {:main-opts  ["-m" "eastwood.lint" {:source-paths ["src"]}]
+            :extra-deps {jonase/eastwood {:mvn/version "RELEASE"}}}
+
+           :jar
+           {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.297"}}
+            :exec-fn      hf.depstar/jar
+            :exec-args    {:jar "target/codelists-lib.jar"}}
+
+           :uberjar
+           {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.1.297"}}
+            :exec-fn      hf.depstar/uberjar
+            :exec-args    {:jar        "target/codelists.jar"
+                           :aot        true
+                           :aliases    [:run]
+                           :main-class "com.eldrix.codelists.cli"}}}}
