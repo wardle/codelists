@@ -36,7 +36,7 @@ A codelist is defined as keys and values in a map.
 
 ```json
 {
-  "info.snomed/ECL": "<<24700007"
+  "ecl": "<<24700007"
 } 
 ```
 
@@ -50,7 +50,7 @@ UK drug index - dm+d
 
 ```json
 {
-  "info.snomed/ECL": "(<<24056811000001108|Dimethyl fumarate|) OR (<<12086301000001102|Tecfidera|) OR (<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
+  "ecl": "(<<24056811000001108|Dimethyl fumarate|) OR (<<12086301000001102|Tecfidera|) OR (<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
 }
 ```
 
@@ -60,7 +60,7 @@ But `codelists' supports other namespaced codesystems. For example:
 
 ```json
 {
-  "uk.nhs.dmd/ATC": "L04AX07"
+  "atc": "L04AX07"
 }
 ```
 
@@ -73,10 +73,10 @@ Different codesystems can be combined using boolean operators and prefix notatio
 {
   "or": [
     {
-      "uk.nhs.dmd/ATC": "L04AX07"
+      "atc": "L04AX07"
     },
     {
-      "info.snomed/ECL": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
+      "ecl": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
     }
   ]
 }
@@ -89,35 +89,57 @@ expression:
 
 ```json
 [
-  {"uk.nhs.dmd/ATC": "L04AX07"},
-  {"info.snomed/ECL": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"}
+  {
+    "atc": "L04AX07"
+  },
+  {
+    "ecl": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
+  }
 ]
 ```
+
 Boolean operators "and", "or" and "not" can be nested arbitrarily for complex expressions.
 
 `codelists` also supports ICD-10.
 
 ```json
 {
-"int.who/ICD10": "G35"
+  "icd10": "G35"
 }
 ```
 
 will expand to include all terms that map to G35, and its descendents.
 
-The operator "not" must be defined within another term, or set of nested terms. 
-The result will be the realisation of the first term, or set of nested terms, 
-MINUS the realisation of the second term, or set of nested terms.
+The operator "not" must be defined within another term, or set of nested terms. The result will be the realisation of
+the first term, or set of nested terms, MINUS the realisation of the second term, or set of nested terms.
 
 ```json
 {
-  "int.who/ICD10": "G35",
+  "icd10": "G35",
   "not": {
-    "info.snomed/ECL": "<24700007"
+    "ecl": "<24700007"
   }
 }
 ```
+Or, perhaps a more complex expression:
 
-For reproducible research, `codelists` will include information about *how* the codelist
-was generated, including the releases of SNOMED CT, dm+d and the different software versions.
-It should then be possible to reproduce the content of any codelist.  
+```json
+{
+  "or": [
+    {
+      "icd10": "G35"
+    },
+    {
+      "icd10": "G36"
+    }
+  ],
+  "not": {
+    "ecl": "<24700007"
+  }
+}
+```
+This will generate a set of codes that includes "G35" and "G36" but omit "24700007" (multiple sclerosis).
+
+For reproducible research, `codelists` will include information about *how* the codelist was generated, including the
+releases of SNOMED CT, dm+d and the different software versions. It should then be possible to reproduce the content of
+any codelist.  
