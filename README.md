@@ -105,8 +105,9 @@ Boolean operators "and", "or" and "not" can be nested arbitrarily for complex ex
 
 will expand to include all terms that map to G35, and its descendents.
 
-The operator "not" must be defined with two terms, or nested terms. The result will be the realisation of the first
-term, or set of nested terms, MINUS the realisation of the second term, of set of nested terms.
+The operator "not" must be defined within another term, or set of nested terms. 
+The result will be the realisation of the first term, or set of nested terms, 
+MINUS the realisation of the second term, or set of nested terms.
 
 ```json
 {
