@@ -20,7 +20,6 @@ together to give more advanced functionality.
 * as a library and so can be embedded within another software package running on the java virtual machine (JVM), written
   in, for example java or clojure.
 * as a microservice and so can be used as an API by other software written in any language
-* on the command-line, and so can be used for ad-hoc codelist generation as part of your analytics.
 
 The substrate for all codelists is SNOMED CT. That coding system is an ontology and terminology, and not simply a
 classification. That means we can use the relationships within SNOMED CT to derive more complete codelists.
@@ -32,7 +31,8 @@ All codelists, by default, expand to include historic codes. This is configurabl
 
 Boolean logic is supported, with arbitrary nesting of your codes using a simple DSL.
 
-A codelist is defined as keys and values in a map.
+A codelist is defined as names and values in a map, with the names representing the codesystem
+and the values the specification.
 
 ```json
 {
@@ -76,13 +76,17 @@ Different codesystems can be combined using boolean operators and prefix notatio
       "atc": "L04AX07"
     },
     {
+      "atc": "L04AX08"
+    },
+    {
       "ecl": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
     }
   ]
 }
 ```
 
-This expands the ATC code L04AX07 and supplements with any other product containing DMF as its active ingredient.
+This expands the ATC codes L04AX07 L04AX08 and supplements with any other product containing DMF as its active
+ingredient.
 
 If multiple expressions are used, the default is to perform a logical OR. That means this is equivalent to the above
 expression:
@@ -93,9 +97,34 @@ expression:
     "atc": "L04AX07"
   },
   {
+    "atc": "L04AX08"
+  },
+  {
     "ecl": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
   }
 ]
+```
+
+Duplicate keys are *not* supported, but multiple expressions using different keys are.
+
+```json
+{
+  "atc": "L04AX07",
+  "ecl": "(<10363601000001109|UK Product| :10362801000001104|Has specific active ingredient| =<<724035008|Dimethyl fumarate|)"
+}
+```
+
+When no operator is explicitly provided, a logical 'OR' will be performed.
+
+For concision, all keys can take an array (vector), which will be equivalent to using "or" using the same codesystem.
+
+```json
+{
+  "atc": [
+    "L04AX07",
+    "L04AX08"
+  ]
+}
 ```
 
 Boolean operators "and", "or" and "not" can be nested arbitrarily for complex expressions.
@@ -104,11 +133,11 @@ Boolean operators "and", "or" and "not" can be nested arbitrarily for complex ex
 
 ```json
 {
-  "icd10": "G35"
+  "icd10": "G35.*"
 }
 ```
 
-will expand to include all terms that map to G35, and its descendents.
+will expand to include all terms that map to an ICD-10 code with the prefix "G35.", and its descendents.
 
 The operator "not" must be defined within another term, or set of nested terms. The result will be the realisation of
 the first term, or set of nested terms, MINUS the realisation of the second term, or set of nested terms.
@@ -121,6 +150,7 @@ the first term, or set of nested terms, MINUS the realisation of the second term
   }
 }
 ```
+
 Or, perhaps a more complex expression:
 
 ```json
@@ -138,7 +168,22 @@ Or, perhaps a more complex expression:
   }
 }
 ```
-This will generate a set of codes that includes "G35" and "G36" but omit "24700007" (multiple sclerosis).
+
+Or, more concisely:
+
+```json
+{
+  "icd10": [
+    "G35",
+    "G36"
+  ]
+  "not": {
+    "ecl": "<24700007"
+  }
+}
+```
+
+These will generate a set of codes that includes "G35" and "G36" but omit "24700007" (multiple sclerosis).
 
 For reproducible research, `codelists` will include information about *how* the codelist was generated, including the
 releases of SNOMED CT, dm+d and the different software versions. It should then be possible to reproduce the content of
