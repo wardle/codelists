@@ -16,7 +16,7 @@
                           io.pedestal/pedestal.service   {:mvn/version "0.5.10"}
                           io.pedestal/pedestal.jetty     {:mvn/version "0.5.10"}
                           ch.qos.logback/logback-classic {:mvn/version "1.2.11"}}
-            :main-opts   ["-m" "com.eldrix.dmd.cli"]
+            :main-opts   ["-m" "com.eldrix.codelists.cmd"]
             :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
                           "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"
                           "--illegal-access=permit"]}
@@ -27,7 +27,8 @@
            :test
            {:extra-paths ["test"]
             :extra-deps  {io.github.cognitect-labs/test-runner {:git/sha "a85b3b02765fb68684ab9ee4a8598eacf7e471d2"}
-                          ch.qos.logback/logback-classic       {:mvn/version "1.2.11"}}
+                          ch.qos.logback/logback-classic       {:mvn/version "1.2.11"}
+                          org.clojure/data.csv                 {:mvn/version "1.0.0"}}
             :main-opts   ["-m" "cognitect.test-runner"]
             :exec-fn     cognitect.test-runner.api/test
             :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
