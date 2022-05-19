@@ -30,50 +30,25 @@
   You might generate a codelist for documentation purposes but use a different
   approach to check each row of source data. All approaches should give the
   same answers."
-  (:require [clojure.set :as set]
-            [clojure.spec.alpha :as s]
+  (:require [clojure.data.json :as json]
+            [clojure.set :as set]
             [clojure.string :as str]
             [com.eldrix.dmd.core :as dmd]
             [com.eldrix.hermes.core :as hermes]
-            [com.eldrix.hermes.snomed :as snomed]
-            [clojure.string :as str])
-  (:import (java.util Set)))
+            [com.eldrix.hermes.snomed :as snomed]))
 
+(defn parse-json [s]
+  (json/read-str s :key-fn keyword))
 
-(defprotocol CodeList
-  (member? [this concept-ids])
-  (expand [this]))
+(declare realize-concepts)
 
-(extend Set
-  CodeList
-  {:member? (fn [this concept-ids] (some true? (map #(contains? this %) concept-ids)))
-   :expand  (fn [this] this)})
-
-
-
-;;;;
-;;;; specifications of the codelist specification...
-;;;;
-(s/def ::ecl string?)
-(s/def ::atc-code string?)
-(s/def ::atc (s/or :atc-codes (s/coll-of ::atc-code) :atc-code ::atc-code))
-(s/def ::icd10-code string?)
-(s/def ::icd10 (s/or :icd10-codes (s/coll-of ::icd10-code) :icd10-code ::icd10-code))
-(s/def ::codes (s/keys :req-un [(or ::ecl ::atc ::icd10)]))
-(s/def ::inclusions ::codes)
-(s/def ::exclusions ::codes)
-(s/def ::codelist (s/or :codes ::codes :inclusions-exclusions (s/keys :req-un [::inclusions] :opt-un [::exclusions])))
-
-
-(defn disjoint?
-  "Are sets disjoint, so that no set shares a member with any other set?
-  Note this is different to determining the intersection between the sets.
-  e.g.
-    (clojure.set/intersection #{1 2} #{2 3} #{4 5})  => #{}   ; no intersection
-    (disjoint? #{1 2} #{2 3} #{4 5})                 => false ; not disjoint."
-  [& sets]
-  (apply distinct? (apply concat sets)))
-
+(defn apply-union
+  "Applies function f to x, but if x is a sequence, returns the logical union
+  of applying f to each member. 'f' should be a function returning a set."
+  [f x]
+  (if (sequential? x)
+    (apply set/union (map f x))
+    (f x)))
 
 (defn tf-for-product [hermes concept-id]
   (filter #(seq (hermes/get-component-refset-items hermes % 999000631000001100)) (hermes/get-all-parents hermes concept-id)))
@@ -91,60 +66,30 @@
         vmps (map #(str "<<" %) (:VMP products))]
     (str/join " OR " (concat tfs vtms vmps))))
 
+(defn realize-concepts*
+  [{:com.eldrix/keys [hermes dmd] :as env} {and' :and or' :or not' :not :keys [ecl icd10 atc]}]
+  (let [incl (set/union
+                  (when and' (apply set/intersection (map #(realize-concepts env %) and')))
+                  (when or' (apply set/union (map #(realize-concepts env %) or')))
+                  (when ecl (apply-union #(into #{} (map :conceptId (hermes/expand-ecl-historic hermes %))) ecl))
+                  (when icd10 (hermes/with-historical hermes (set (apply-union #(hermes/member-field-wildcard hermes 447562003 "mapTarget" %) icd10))))
+                  (when atc (apply-union #(let [atc' (atc->snomed-ecl env (re-pattern (str/replace % "*" ".*")))]
+                                            (when-not (= "" atc') (into #{} (map :conceptId (hermes/expand-ecl-historic hermes atc' ))))) atc)))]
+    (if not'
+      (set/difference incl (realize-concepts env not'))
+      incl)))
 
-(defn expand-atc
-  "Expands ATC codes into a set of identifiers."
-  [{:com.eldrix/keys [dmd hermes] :as system} & atc-codes]
-  (when-not (s/valid? ::atc atc-codes)
-    (throw (ex-info "invalid ATC codes:" (s/explain-data ::atc atc-codes))))
-  (->> atc-codes
-       (map #(atc->snomed-ecl system (re-pattern (str % ".*"))))
-       (remove #(= "" %))
-       (mapcat #(hermes/expand-ecl-historic hermes %))
-       (map :conceptId)
-       (into #{})))
+(defn realize-concepts [env x]
+  (apply-union #(realize-concepts* env %) x))
 
-(defn expand-icd10 [{:com.eldrix/keys [hermes]}  & icd10-codes]
-  (->> icd10-codes
-       (map #(map :referencedComponentId (hermes/reverse-map-range hermes 447562003 %)))
-       (map set)
-       (map #(hermes/with-historical hermes %))
-       (apply set/union)))
-
-(defn expand-codes
-  "Generate a set of codes based on the data specified.
-  A set of codes can be specified using a combination:
-  - :ecl   : SNOMED CT expression (expression constraint language)
-  - :atc   : A vector of ATC code prefixes.
-  - :icd10 : A vector of ICD10 code prefixes.
-
-  Codes will be created from the union of the results of any definitions."
-  [{:com.eldrix/keys [hermes dmd] :as system} {:keys [ecl atc icd10] :as codes}]
-  (when-not (s/valid? ::codes codes)
-    (throw (ex-info "invalid codes" (s/explain-data ::codes codes))))
-  (set/union (when ecl (into #{} (map :conceptId (hermes/expand-ecl-historic hermes ecl))))
-             (when atc (if (coll? atc) (apply expand-atc system atc)
-                                       (expand-atc system atc)))
-             (when icd10 (if (coll? icd10) (apply expand-icd10 system icd10)
-                                           (expand-icd10 system icd10)))))
-
-(defn expand-codelist
-  "Expand a codelist from the inclusions and exclusions specified.
-  The configuration will be treated as inclusions, for convenience, if
-  no inclusions are explicitly stated."
-  [system {:keys [inclusions exclusions] :as codelist}]
-  (when-not (s/valid? ::codelist codelist)
-    (throw (ex-info "invalid codelist" (s/explain-data ::codelist codelist))))
-  (let [incl (when inclusions (expand-codes system inclusions))
-        excl (when exclusions (expand-codes system exclusions))]
-    (cond
-      (and inclusions exclusions)
-      (set/difference incl excl)
-      inclusions
-      incl
-      (and exclusions (not inclusions))
-      (throw (ex-info "missing ':inclusions' clause on codelist definition" codelist))
-      :else (expand-codes system codelist))))
+(defn disjoint?
+  "Are sets disjoint, so that no set shares a member with any other set?
+  Note this is different to determining the intersection between the sets.
+  e.g.
+    (clojure.set/intersection #{1 2} #{2 3} #{4 5})  => #{}   ; no intersection
+    (disjoint? #{1 2} #{2 3} #{4 5})                 => false ; not disjoint."
+  [& sets]
+  (apply distinct? (apply concat sets)))
 
 (defn to-icd10
   "Map a collection of concept identifiers to a set of ICD-10 codes."
@@ -174,41 +119,6 @@
                    (vector (dmd/atc-for-product dmd concept-id)))))
        (filter identity)
        set))
-
-(defn match-code
-  "A simple prefix match for a collection of codes.
-  - codes : a collection of codes, or a single string
-  - code  : code to be checked against codes."
-  [codes code]
-  (if (string? codes)
-    (str/starts-with? code codes)
-    (some true? (map #(str/starts-with? code %) codes))))
-
-(defn match-codes
-  [codes codes']
-  (some true? (map #(when (string? %) (match-code codes %)) codes')))
-
-(comment
-  (match-codes "ABC" []))
-
-(defn any-member? [{:com.eldrix/keys [dmd hermes] :as system} codelist concept-ids]
-  (let [inclusions (or (:inclusions codelist) codelist)
-        exclusions (set (when-let [excl (:exclusions codelist)] (expand-codes system excl)))
-        concept-ids' (set/difference (set concept-ids) exclusions)
-        atc-codes (to-atc system concept-ids')
-        icd10-codes (to-icd10 system concept-ids')]
-    (boolean (or (match-codes (:atc inclusions) atc-codes)
-                 (match-codes (:icd10 inclusions) icd10-codes)
-                 (when-let [ecl (:ecl inclusions)]
-                   (hermes/ecl-contains? hermes (hermes/with-historical hermes concept-ids') ecl))))))
-
-(deftype LazyCodeList [system codelist]
-  CodeList
-  (member? [_ concept-ids] (any-member? system codelist concept-ids))
-  (expand [_] (expand-codelist system codelist)))
-
-(defn make-codelist [system {:keys [inclusions exclusions] :as codelist}]
-  (->LazyCodeList system codelist))
 
 (comment
 
@@ -249,14 +159,14 @@
   (def os-calchan (set (map #(Long/parseLong (get % 1)) (rest (clojure.data.csv/read-csv (clojure.java.io/reader "https://www.opencodelists.org/codelist/opensafely/calcium-channel-blockers/2020-05-19/download.csv"))))))
   os-calchan
   (def calchan (expand calcium-channel-blockers))
-  (map ps (set/difference os-calchan calchan ))
+  (map ps (set/difference os-calchan calchan))
   (map ps (set/difference calchan os-calchan))
 
   (hermes/expand-ecl-historic hermes (dmd/atc->snomed-ecl dmd #"C09A.*"))
   (dmd/atc->products-for-ecl dmd #"C09A.*")
-  (hermes/subsumed-by? hermes 10441211000001106 9191801000001103)
+  (hermes/subsumed-by? hermes 10441211000001106 9191801000001103))
 
 
 
-  )
+
 
