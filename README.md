@@ -64,8 +64,12 @@ But `codelists' supports other namespaced codesystems. For example:
 }
 ```
 
-Will expand to a list of SNOMED identifiers that are mapped to the ATC code L04AX07 and its descendents within the
+Will expand to a list of SNOMED identifiers that are mapped to the exact match ATC code L04AX07 and its descendents within the
 SNOMED hierarchy.
+
+A SNOMED CT expression in the expression constraint language must be a valid expression.
+ICD-10 and ATC codes can be specified as an exact match (e.g. "G35") or as a prefix (e.g. "G3*"). The latter will 
+match against all codes that begin with "G3".
 
 Different codesystems can be combined using boolean operators and prefix notation:
 
@@ -133,11 +137,11 @@ Boolean operators "and", "or" and "not" can be nested arbitrarily for complex ex
 
 ```json
 {
-  "icd10": "G35.*"
+  "icd10": "G35*"
 }
 ```
 
-will expand to include all terms that map to an ICD-10 code with the prefix "G35.", and its descendents.
+will expand to include all terms that map to an ICD-10 code with the prefix "G35", and its descendents.
 
 The operator "not" must be defined within another term, or set of nested terms. The result will be the realisation of
 the first term, or set of nested terms, MINUS the realisation of the second term, or set of nested terms.
@@ -160,7 +164,7 @@ Or, perhaps a more complex expression:
       "icd10": "G35"
     },
     {
-      "icd10": "G36"
+      "icd10": "G36.*"
     }
   ],
   "not": {
@@ -175,15 +179,15 @@ Or, more concisely:
 {
   "icd10": [
     "G35",
-    "G36"
-  ]
+    "G36.*"
+  ],
   "not": {
     "ecl": "<24700007"
   }
 }
 ```
 
-These will generate a set of codes that includes "G35" and "G36" but omit "24700007" (multiple sclerosis).
+These will generate a set of codes that includes codes "G35" and any with the prefix "G36." but omit "24700007" (multiple sclerosis).
 
 For reproducible research, `codelists` will include information about *how* the codelist was generated, including the
 releases of SNOMED CT, dm+d and the different software versions. It should then be possible to reproduce the content of
