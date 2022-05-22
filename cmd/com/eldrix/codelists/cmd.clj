@@ -74,14 +74,24 @@
        (assoc context :response (ok item))
        context))})
 
+(def as-lookup
+  {"icd10" codelists/to-icd10
+   "atc" codelists/to-atc
+   "names" (fn [{:com.eldrix/keys [hermes]} codes]
+             (map #(vector % (:term (hermes/get-preferred-synonym hermes % "en-GB"))) codes))})
 
 (def expand
   {:name  ::expand
    :enter (fn [ctx]
             (let [s (get-in ctx [:request :params :s])
+                  as (get-in ctx [:request :params :as])
                   env (get-in ctx [:request ::env])]
               (when-not (str/blank? s)
-                (assoc ctx :result (codelists/realize-concepts env (codelists/parse-json s))))))})
+                (let [concept-ids (codelists/realize-concepts env (codelists/parse-json s))]
+                  (if (str/blank? as)
+                    (assoc ctx :result concept-ids)
+                    (when-let [as-f (get as-lookup (str/lower-case as))]
+                      (assoc ctx :result (as-f env concept-ids))))))))})
 
 (def status
   {:name  ::status
