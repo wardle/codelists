@@ -24,31 +24,34 @@ together to give more advanced functionality.
 The substrate for all codelists is SNOMED CT. That coding system is an ontology and terminology, and not simply a
 classification. That means we can use the relationships within SNOMED CT to derive more complete codelists.
 
-If you only use the SNOMED CT ECL to define your codelists, then simply use `hermes` directly. 
+If you only use the SNOMED CT ECL to define your codelists, then simply use `hermes` directly.
 You only need the additional functionality provided by `codelists` if you are building codelists
 from a combination of SNOMED CT ECL, ATC codes and ICD-10.
 
-ATC maps are not provided as part of SNOMED CT, but are provided by the UK 
-dm+d. ICD-10 maps are provided as part of SNOMED CT. 
+ATC maps are not provided as part of SNOMED CT, but are provided by the UK
+dm+d. ICD-10 maps are provided as part of SNOMED CT.
 
 # Getting started
 
-`codelists` depends on two services: [hermes](https://github.com/wardle/hermes) and [dmd](https://github.com/wardle/dmd). 
+`codelists` depends on two services: [hermes](https://github.com/wardle/hermes) and [dmd](https://github.com/wardle/dmd)
+.
 
 `hermes` provides a SNOMED CT terminology server.
 `dmd` provides software services around the UK dictionary of medicines and devices (dm+d).
 
 Each of those services uses a file-based 'database'. Each can be run directly from
-source code using the clojure command-line tools, or by using the provided 
+source code using the clojure command-line tools, or by using the provided
 pre-compiled uberjar. You run the latter using java.
 
 In most of my clinical applications, and my data analysis pipelines, I use a combination of all three
 services. `codelists` currently does *not* provide an automatic wizard to automatically download and  
 build those file-based databases, as I already build and keep a library of multiple versions of each
-for other usages. 
+for other usages.
 
-To prepare `hermes` and `dmd`, you will need a [TRUD API key from NHS Digital](https://isd.digital.nhs.uk/trud/user/guest/group/0/home), 
-and use each services' download wizard to automatically download and install the latest distribution(s). That should take
+To prepare `hermes` and `dmd`, you will need
+a [TRUD API key from NHS Digital](https://isd.digital.nhs.uk/trud/user/guest/group/0/home),
+and use each services' download wizard to automatically download and install the latest distribution(s). That should
+take
 about 15 minutes, not including download times.
 
 Once you have file-based databases available for `hermes` and `dmd`, simply run:
@@ -59,13 +62,12 @@ clj -M:run serve --hermes ../path/to/snomed-2022-05.db --dmd /path/to/dmd-2022-0
 
 You will then have a locally running HTTP server that can expand codelists.
 
-
 # Using codelists
 
 You can *realise* a codelist, expanding it to all of its codes. You can also test membership of a given code against a
 codelist.
 
-All codelists, by default, expand to include historic codes. This will become 
+All codelists, by default, expand to include historic codes. This will become
 configurable, but is the default for greater sensitivity at the expense of specificity.
 Different trade-offs might apply to your specific project.
 
@@ -104,11 +106,12 @@ But `codelists' supports other namespaced codesystems. For example:
 }
 ```
 
-Will expand to a list of SNOMED identifiers that are mapped to the exact match ATC code L04AX07 and its descendents within the
+Will expand to a list of SNOMED identifiers that are mapped to the exact match ATC code L04AX07 and its descendents
+within the
 SNOMED hierarchy.
 
 A SNOMED CT expression in the expression constraint language must be a valid expression.
-ICD-10 and ATC codes can be specified as an exact match (e.g. "G35") or as a prefix (e.g. "G3*"). The latter will 
+ICD-10 and ATC codes can be specified as an exact match (e.g. "G35") or as a prefix (e.g. "G3*"). The latter will
 match against all codes that begin with "G3".
 
 Different codesystems can be combined using boolean operators and prefix notation:
@@ -227,8 +230,55 @@ Or, more concisely:
 }
 ```
 
-These will generate a set of codes that includes codes "G35" and any with the prefix "G36." but omit "24700007" (multiple sclerosis).
+These will generate a set of codes that includes codes "G35" and any with the prefix "G36." but omit "24700007" (
+multiple sclerosis).
+
+You can use wildcards. Here I directly use a running `codelists` HTTP server
+to expand a codelist defined as
+
+```json
+{
+  "atc": "C08*"
+}
+```
+This should give a codelist containing all calcium channel blockers.
+
+```shell
+http '127.0.0.1:8080/v1/codelists/expand?s={"atc":"C08*"}'
+```
+Result:
+```json
+[
+    374049007,
+    13764411000001106,
+    376841009,
+    11160711000001108,
+    893111000001107,
+    29826211000001109,
+    376754006,
+    ...
+```
 
 For reproducible research, `codelists` will include information about *how* the codelist was generated, including the
 releases of SNOMED CT, dm+d and the different software versions. It should then be possible to reproduce the content of
-any codelist.  
+any codelist. At the moment, only the data versions are returned:
+
+```shell
+http 127.0.0.1:8080/v1/codelists/status
+```
+
+The following metadata will be returned:
+```json
+
+{
+    "dmd": {
+        "releaseDate": "2022-05-05"
+    },
+    "hermes": [
+        "© 2002-2021 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. \"SNOMED\" and \"SNOMED CT\" are registered trademarks of the IHTSDO.",
+        "32.12.0_20220413000001 UK drug extension",
+        "32.12.0_20220413000001 UK clinical extension"
+    ]
+}
+
+```
