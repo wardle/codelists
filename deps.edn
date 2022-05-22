@@ -10,6 +10,11 @@
  :aliases {:dev
            {:extra-paths ["cmd" "test/src" "test/resources"]}
 
+           :build
+           {:deps       {io.github.clojure/tools.build {:git/tag "v0.8.2" :git/sha "ba1a2bf"}
+                         slipset/deps-deploy           {:mvn/version "RELEASE"}}
+            :ns-default build}
+
            :run
            {:extra-paths ["cmd"]
             :extra-deps  {org.clojure/tools.cli          {:mvn/version "1.0.206"}
