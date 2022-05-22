@@ -77,12 +77,18 @@
 
 (def expand
   {:name  ::expand
-   :enter (fn [context]
-            (let [s (get-in context [:request :params :s])
-                  env (get-in context [:request ::env])]
+   :enter (fn [ctx]
+            (let [s (get-in ctx [:request :params :s])
+                  env (get-in ctx [:request ::env])]
               (log/debug "expanding " s)
               (when-not (str/blank? s)
-                (assoc context :result (codelists/realize-concepts env (codelists/parse-json s))))))})
+                (assoc ctx :result (codelists/realize-concepts env (codelists/parse-json s))))))})
+
+(def status
+  {:name  ::status
+   :enter (fn [ctx]
+            (let [{::keys [status]} (get-in ctx [:request ::env])]
+              (assoc ctx :result status)))})
 
 (def common-routes [coerce-body content-neg-intc entity-render])
 
@@ -98,7 +104,8 @@
 
 (def routes
   (route/expand-routes
-    #{["/v1/codelists/expand"  :get (conj common-routes service-error-handler expand)]}))
+    #{["/v1/codelists/expand" :get (conj common-routes service-error-handler expand)]
+      ["/v1/codelists/status" :get (conj common-routes status)]}))
 
 (def service-map
   {::http/routes routes
@@ -148,9 +155,13 @@
           allowed-origins' (when allowed-origins (str/split allowed-origins #","))
           params' (cond (= ["*"] allowed-origins') (assoc params :allowed-origins (constantly true))
                         (seq allowed-origins') (assoc params :allowed-origins allowed-origins')
-                        :else params)]
+                        :else params)
+          status {:hermes (map :term (hermes/get-release-information hermes'))
+                  :dmd    {:releaseDate (dmd/fetch-release-date dmd')}}]
       (log/info "starting codelists server " params')
-      (start-server {:com.eldrix/hermes hermes' :com.eldrix/dmd dmd'} params'))
+      (start-server {:com.eldrix/hermes hermes'
+                     :com.eldrix/dmd    dmd'
+                     ::status           status} params'))
     (log/error "Both hermes and dmd database directories must be specified." params)))
 
 (def cli-options
@@ -183,7 +194,7 @@
     (str/join \newline)))
 
 (def commands
-  {"serve"    {:fn serve}})
+  {"serve" {:fn serve}})
 
 (defn exit [status msg]
   (println msg)
