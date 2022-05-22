@@ -80,7 +80,6 @@
    :enter (fn [ctx]
             (let [s (get-in ctx [:request :params :s])
                   env (get-in ctx [:request ::env])]
-              (log/debug "expanding " s)
               (when-not (str/blank? s)
                 (assoc ctx :result (codelists/realize-concepts env (codelists/parse-json s))))))})
 
