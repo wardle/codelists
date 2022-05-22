@@ -24,6 +24,13 @@ together to give more advanced functionality.
 The substrate for all codelists is SNOMED CT. That coding system is an ontology and terminology, and not simply a
 classification. That means we can use the relationships within SNOMED CT to derive more complete codelists.
 
+If you only use the SNOMED CT ECL to define your codelists, then simply use `hermes` directly. 
+You only need the additional functionality provided by `codelists` if you are building codelists
+from a combination of SNOMED CT ECL, ATC codes and ICD-10.
+
+ATC maps are not provided as part of SNOMED CT, but are provided by the UK 
+dm+d. ICD-10 maps are provided as part of SNOMED CT. 
+
 # Getting started
 
 `codelists` depends on two services: [hermes](https://github.com/wardle/hermes) and [dmd](https://github.com/wardle/dmd). 
