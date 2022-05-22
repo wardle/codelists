@@ -241,22 +241,63 @@ to expand a codelist defined as
   "atc": "C08*"
 }
 ```
+
 This should give a codelist containing all calcium channel blockers.
 
 ```shell
 http '127.0.0.1:8080/v1/codelists/expand?s={"atc":"C08*"}'
 ```
+
 Result:
+
 ```json
 [
-    374049007,
-    13764411000001106,
-    376841009,
-    11160711000001108,
-    893111000001107,
-    29826211000001109,
-    376754006,
-    ...
+  374049007,
+  13764411000001106,
+  376841009,
+  11160711000001108,
+  893111000001107,
+  29826211000001109,
+  376754006,
+  ...
+```
+
+You can customise how data are returned.
+
+By default, a list of codes is returned.
+
+To return identifier and name, use 'as=names'
+
+```shell
+http '127.0.0.1:8080/v1/codelists/expand?s={"atc":"C08*"}&as=names'
+```
+
+Result:
+
+```json
+
+[
+  {
+    "id": 374049007,
+    "term": "Nisoldipine 20mg tablet"
+  },
+  {
+    "id": 13764411000001106,
+    "term": "Amlodipine 5mg tablets (Apotex UK Ltd)"
+  },
+  {
+    "id": 376841009,
+    "term": "Diltiazem malate 120 mg oral tablet"
+  },
+  {
+    "id": 11160711000001108,
+    "term": "Exforge 10mg/160mg tablets (Novartis Pharmaceuticals UK Ltd)"
+  },
+  {
+    "id": 893111000001107,
+    "term": "Tildiem LA 300 capsules (Sanofi)"
+  },
+  ...
 ```
 
 For reproducible research, `codelists` will include information about *how* the codelist was generated, including the
@@ -268,17 +309,18 @@ http 127.0.0.1:8080/v1/codelists/status
 ```
 
 The following metadata will be returned:
+
 ```json
 
 {
-    "dmd": {
-        "releaseDate": "2022-05-05"
-    },
-    "hermes": [
-        "© 2002-2021 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. \"SNOMED\" and \"SNOMED CT\" are registered trademarks of the IHTSDO.",
-        "32.12.0_20220413000001 UK drug extension",
-        "32.12.0_20220413000001 UK clinical extension"
-    ]
+  "dmd": {
+    "releaseDate": "2022-05-05"
+  },
+  "hermes": [
+    "© 2002-2021 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. \"SNOMED\" and \"SNOMED CT\" are registered trademarks of the IHTSDO.",
+    "32.12.0_20220413000001 UK drug extension",
+    "32.12.0_20220413000001 UK clinical extension"
+  ]
 }
 
 ```

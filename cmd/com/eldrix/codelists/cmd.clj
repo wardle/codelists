@@ -75,10 +75,8 @@
        context))})
 
 (def as-lookup
-  {"icd10" codelists/to-icd10
-   "atc" codelists/to-atc
-   "names" (fn [{:com.eldrix/keys [hermes]} codes]
-             (map #(vector % (:term (hermes/get-preferred-synonym hermes % "en-GB"))) codes))})
+  {"names" (fn [{:com.eldrix/keys [hermes]} codes]
+             (map #(hash-map :id % :term (:term (hermes/get-preferred-synonym hermes % "en-GB"))) codes))})
 
 (def expand
   {:name  ::expand
