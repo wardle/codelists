@@ -11,8 +11,9 @@
            {:extra-paths ["cmd" "test/src" "test/resources"]}
 
            :build
-           {:deps       {io.github.clojure/tools.build {:git/tag "v0.8.4" :git/sha "8c3cd69"}
-                         slipset/deps-deploy           {:mvn/version "RELEASE"}}
+           {:deps       {io.github.clojure/tools.build          {:git/tag "v0.8.4" :git/sha "8c3cd69"}
+                         slipset/deps-deploy                    {:mvn/version "RELEASE"}
+                         io.github.borkdude/gh-release-artifact {:git/sha "db5e79559fdbfa009ed4a0921079e20e1e76b269"}}
             :ns-default build}
 
            :run

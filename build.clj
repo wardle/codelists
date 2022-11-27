@@ -1,6 +1,7 @@
 (ns build
   (:require [clojure.tools.build.api :as b]
-            [deps-deploy.deps-deploy :as dd]))
+            [deps-deploy.deps-deploy :as dd]
+            [borkdude.gh-release-artifact :as gh]))
 
 (def lib 'com.eldrix/codelists)
 (def version (format "1.0.%s" (b/git-count-revs nil)))
@@ -10,6 +11,11 @@
                                  :aliases [:run]}))
 (def jar-file (format "target/%s-lib-%s.jar" (name lib) version))
 (def uber-file (format "target/%s-%s.jar" (name lib) version))
+(def github {:org    "wardle"
+             :repo   "codelists"
+             :tag    (str "v" version)
+             :file   uber-file
+             :sha256 true})
 
 (defn clean [_]
       (b/delete {:path "target"}))
@@ -69,3 +75,11 @@
                :uber-file uber-file
                :basis     uber-basis
                :main      'com.eldrix.codelists.cmd}))
+
+(defn release
+      "Deploy release to GitHub. Requires valid token in GITHUB_TOKEN environmental
+       variable."
+      [_]
+      (uber nil)
+      (println "Deploying release to github")
+      (gh/release-artifact github))
