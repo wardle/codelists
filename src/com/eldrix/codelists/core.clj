@@ -94,7 +94,7 @@
 (defn to-icd10
   "Map a collection of concept identifiers to a set of ICD-10 codes."
   [{:com.eldrix/keys [hermes]} concept-ids]
-  (->> (hermes/with-historical hermes concept-ids)
+  (->> concept-ids
        (mapcat #(hermes/get-component-refset-items hermes % 447562003))
        (map :mapTarget)
        (filter identity)
@@ -112,7 +112,7 @@
   but cannot map from TF concepts. As such, this checks whether the product is
   a TF concept id, and simply uses the VMPs instead."
   [{:com.eldrix/keys [hermes dmd] :as system} concept-ids]
-  (->> (hermes/with-historical hermes concept-ids)
+  (->> concept-ids
        (mapcat (fn [concept-id]
                  (if (is-trade-family? system concept-id)
                    (distinct (map #(dmd/atc-for-product dmd %) (hermes/get-child-relationships-of-type hermes concept-id snomed/IsA)))
