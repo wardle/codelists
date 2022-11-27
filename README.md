@@ -1,5 +1,11 @@
 # codelists
 
+
+[![Scc Count Badge](https://sloc.xyz/github/wardle/codelists)](https://github.com/wardle/codelists/)
+[![Scc Cocomo Badge](https://sloc.xyz/github/wardle/codelists?category=cocomo&avg-wage=100000)](https://github.com/wardle/codelists/)
+[![Clojars Project](https://img.shields.io/clojars/v/com.eldrix/codelists.svg)](https://clojars.org/com.eldrix/codelists)
+
+
 `codelists` generates versioned codelists for reproducible research.
 
 You can define codelists using a variety of means, such as
