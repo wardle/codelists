@@ -8,6 +8,48 @@
 
 `codelists` generates versioned codelists for reproducible research.
 
+In general, there are two ways to think about codelists and reproducible research.
+
+The first is a explicit human curation of a list of codes. This is the approach adopted by 
+[opencodelists](http://opencodelists.org). You create and share codelists. 
+
+The second is to define a codelist using a declarative specification which can be
+used to dynamically - but reproducibly - generate the codelist.  
+
+Let's look at an example. [opencodelists](http://opencodelists.org) has a codelist
+to specify terms that represent a referral to colorectal services under a 2-week wait
+(urgent) basis. https://www.opencodelists.org/codelist/phc/2ww-referral-colorectal/7eac259d/#full-list
+
+At the time of writing, this manually curated list includes one active concept and
+two inactive concepts.
+
+```
+276401000000108	Fast track referral for suspected colorectal cancer
+276411000000105	Urgent cancer referral - colorectal
+276421000000104	Urgent cancer referral - colorectal
+```
+
+Instead we can simply define this codelist using a SNOMED CT constraint using the
+syntax of the SNOMED CT expression constraint language:
+```
+{
+  "ecl": "<<276401000000108"
+} 
+```
+Result:
+```
+=> #{276401000000108 276411000000105 276421000000104}
+```
+
+Based on a named versioned distribution of SNOMED, and defined versions of this
+tool, this specification can be used to generate a codelist. If SNOMED CT
+changes over time, this specification will continue to work, due to the semantic
+relationships within SNOMED CT. `codelists` can expand a set of codes to include
+now inactive concepts using historical associations.
+
+
+# How to use `codelists`
+
 You can define codelists using a variety of means, such as
 
 * ICD-10 codes for diagnoses
@@ -47,7 +89,7 @@ dm+d. ICD-10 maps are provided as part of SNOMED CT.
 
 Each of those services uses a file-based 'database'. Each can be run directly from
 source code using the clojure command-line tools, or by using the provided
-pre-compiled uberjar. You run the latter using java.
+pre-compiled uberjar. You run the latter using Java.
 
 In most of my clinical applications, and my data analysis pipelines, I use a combination of all three
 services. `codelists` currently does *not* provide an automatic wizard to automatically download and  
