@@ -5,15 +5,15 @@
            org.clojure/tools.logging {:mvn/version "1.2.4"}
 
            com.eldrix/dmd            {:mvn/version "0.6.146"}
-           com.eldrix/hermes         {:mvn/version "1.0.804"}}
+           com.eldrix/hermes         {:mvn/version "1.1.1000"}}
 
  :aliases {:dev
            {:extra-paths ["cmd" "test/src" "test/resources"]}
 
            :build
-           {:deps       {io.github.clojure/tools.build          {:git/tag "v0.8.4" :git/sha "8c3cd69"}
+           {:deps       {io.github.clojure/tools.build          {:git/tag "v0.9.4" :git/sha "76b78fe"}
                          slipset/deps-deploy                    {:mvn/version "RELEASE"}
-                         io.github.borkdude/gh-release-artifact {:git/sha "db5e79559fdbfa009ed4a0921079e20e1e76b269"}}
+                         io.github.borkdude/gh-release-artifact {:git/sha "4a9a74f0e50e897c45df8cc70684360eb30fce80"}}
             :ns-default build}
 
            :run
@@ -21,11 +21,10 @@
             :extra-deps  {org.clojure/tools.cli          {:mvn/version "1.0.214"}
                           io.pedestal/pedestal.service   {:mvn/version "0.5.10"}
                           io.pedestal/pedestal.jetty     {:mvn/version "0.5.10"}
-                          ch.qos.logback/logback-classic {:mvn/version "1.4.4"}}
+                          ch.qos.logback/logback-classic {:mvn/version "1.4.6"}}
             :main-opts   ["-m" "com.eldrix.codelists.cmd"]
             :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
-                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"
-                          "--illegal-access=permit"]}
+                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"]}
 
            :socket
            {:jvm-opts ["-Dclojure.server.repl={:port,50505,:accept,clojure.core.server/repl}"]}
@@ -33,13 +32,12 @@
            :test
            {:extra-paths ["test"]
             :extra-deps  {io.github.cognitect-labs/test-runner {:git/sha "7284cda41fb9edc0f3bc6b6185cfb7138fc8a023"}
-                          ch.qos.logback/logback-classic       {:mvn/version "1.4.4"}
+                          ch.qos.logback/logback-classic       {:mvn/version "1.4.6"}
                           org.clojure/data.csv                 {:mvn/version "1.0.1"}}
             :main-opts   ["-m" "cognitect.test-runner"]
             :exec-fn     cognitect.test-runner.api/test
             :jvm-opts    ["--add-opens" "java.base/java.nio=ALL-UNNAMED"
-                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"
-                          "--illegal-access=permit"]}
+                          "--add-opens" "java.base/sun.nio.ch=ALL-UNNAMED"]}
 
            :outdated
            {:extra-deps {com.github.liquidz/antq {:mvn/version "RELEASE"}}
