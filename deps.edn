@@ -5,7 +5,7 @@
            org.clojure/tools.logging {:mvn/version "1.2.4"}
 
            com.eldrix/dmd            {:mvn/version "0.6.146"}
-           com.eldrix/hermes         {:mvn/version "1.1.1000"}}
+           com.eldrix/hermes         {:mvn/version "1.2.1026"}}
 
  :aliases {:dev
            {:extra-paths ["cmd" "test/src" "test/resources"]}
