@@ -10,7 +10,7 @@
 
 (defn live-test-fixture [f]
   (binding [*hermes* (hermes/open "../hermes/snomed.db")
-            *dmd* (dmd/open-store "../dmd/dmd-2022-05-09.db")]
+            *dmd* (dmd/open-store "../dmd/dmd-2024-01-29.db")]
     (f)
     (.close *dmd*)
     (hermes/close *hermes*)))
