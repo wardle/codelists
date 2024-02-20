@@ -1,6 +1,6 @@
 # Changes
 
-## [v1.0.34] - 2024-02-20
+## [v1.0.36] - 2024-02-20
 
 * Bump to v1.0 series of dmd for UK dictionary of drugs and devices
 * Bump to v1.4 series of hermes for SNOMED CT
