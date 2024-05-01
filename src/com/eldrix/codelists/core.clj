@@ -40,10 +40,11 @@
     (f x)))
 
 (defn tf-for-product [hermes concept-id]
-  (filter #(seq (hermes/component-refset-items hermes % 999000631000001100)) (hermes/all-parents hermes concept-id)))
+  (filter #(seq (hermes/component-refset-items hermes % 999000631000001100))
+          (hermes/all-parents hermes concept-id)))
 
 (defn atc->snomed-ecl
-  "Map an ATC regexp into a SNOMED expression that can include all UK product
+  "Map an ATC code into a SNOMED expression that can include all UK product
   identifiers (VTM, VMP, AMP and TF). This does not include product packs,
   by design."
   [{:com.eldrix/keys [dmd hermes]} atc]
@@ -60,12 +61,12 @@
 (defn realize-concepts*
   [{:com.eldrix/keys [hermes dmd] :as env} {and' :and or' :or not' :not :keys [ecl icd10 atc]}]
   (let [incl (set/union
-                  (when and' (apply set/intersection (map #(realize-concepts env %) and')))
-                  (when or' (apply set/union (map #(realize-concepts env %) or')))
-                  (when ecl (apply-union #(into #{} (map :conceptId (hermes/expand-ecl-historic hermes %))) ecl))
-                  (when icd10 (hermes/with-historical hermes (set (apply-union #(hermes/member-field-wildcard hermes 447562003 "mapTarget" %) icd10))))
-                  (when atc (apply-union #(let [atc' (atc->snomed-ecl env (re-pattern (str/replace % "*" ".*")))]
-                                            (when-not (= "" atc') (into #{} (map :conceptId (hermes/expand-ecl-historic hermes atc' ))))) atc)))]
+              (when and' (apply set/intersection (map #(realize-concepts env %) and')))
+              (when or' (apply set/union (map #(realize-concepts env %) or')))
+              (when ecl (apply-union #(into #{} (map :conceptId (hermes/expand-ecl-historic hermes %))) ecl))
+              (when icd10 (hermes/with-historical hermes (set (apply-union #(hermes/member-field-wildcard hermes 447562003 "mapTarget" %) icd10))))
+              (when atc (apply-union #(let [atc' (atc->snomed-ecl env %)]
+                                        (when-not (= "" atc') (into #{} (map :conceptId (hermes/expand-ecl-historic hermes atc'))))) atc)))]
     (if not'
       (set/difference incl (realize-concepts env not'))
       incl)))
@@ -114,7 +115,7 @@
 (comment
 
   (def hermes (hermes/open "/Users/mark/Dev/hermes/snomed.db"))
-  (def dmd (dmd/open-store "/Users/mark/Dev/dmd/dmd-2022-05-09.db"))
+  (def dmd (dmd/open-store "/Users/mark/Dev/dmd/dmd-2024-01-29.db"))
   (def system {:com.eldrix/hermes hermes :com.eldrix/dmd dmd})
   (defn ps [id] (vector id (:term (hermes/preferred-synonym (:com.eldrix/hermes system) id "en-GB"))))
   (ps 24700007)
@@ -122,10 +123,11 @@
   (dmd/fetch-product dmd 108537001)
   (hermes/concept hermes 108537001)
   (ps 108537001)
-  (def calcium-channel (realize-concepts system {:atc #"C08CA.*"}))   ;; see https://www.whocc.no/atc_ddd_index/?code=C08CA01
+  (def calcium-channel (realize-concepts system {:atc "C08CA"}))   ;; see https://www.whocc.no/atc_ddd_index/?code=C08CA01
   (count calcium-channel)
   (contains? calcium-channel 108537001)
 
+  (atc->snomed-ecl system #"C08CA.*")
   (def multiple-sclerosis (realize-concepts system {:icd10 "G35"}))
   (contains? multiple-sclerosis 24700007)
 

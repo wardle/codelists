@@ -132,9 +132,9 @@
        (uncaughtException [_ thread ex]
          (log/error ex "Uncaught exception on" (.getName thread)))))
    (let [cfg (cond-> {}
-                     port (assoc ::http/port port)
-                     bind-address (assoc ::http/host bind-address)
-                     allowed-origins (assoc ::http/allowed-origins allowed-origins))]
+               port (assoc ::http/port port)
+               bind-address (assoc ::http/host bind-address)
+               allowed-origins (assoc ::http/allowed-origins allowed-origins))]
      (-> (merge service-map cfg)
          (assoc ::http/join? join?)
          (http/default-interceptors)
@@ -163,7 +163,7 @@
           params' (cond (= ["*"] allowed-origins') (assoc params :allowed-origins (constantly true))
                         (seq allowed-origins') (assoc params :allowed-origins allowed-origins')
                         :else params)
-          status {:hermes (map :term (hermes/get-release-information hermes'))
+          status {:hermes (map :term (hermes/release-information hermes'))
                   :dmd    {:releaseDate (dmd/fetch-release-date dmd')}}]
       (log/info "starting codelists server " params')
       (start-server {:com.eldrix/hermes hermes'
