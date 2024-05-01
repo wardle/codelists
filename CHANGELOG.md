@@ -1,5 +1,9 @@
 # Changes
 
+## [v1.0.38] - 2024-05-01
+
+* Standardise use of wildcards in ATC and ICD-10 code definitions
+
 ## [v1.0.36] - 2024-02-20
 
 * Bump to v1.0 series of dmd for UK dictionary of drugs and devices
