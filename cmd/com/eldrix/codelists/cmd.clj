@@ -1,17 +1,21 @@
 (ns com.eldrix.codelists.cmd
   (:gen-class)
-  (:require [clojure.data.json :as json]
+  (:require [clojure.core.match :as match]
+            [clojure.data.json :as json]
             [clojure.string :as str]
             [clojure.tools.cli :as cli]
             [clojure.tools.logging :as log]
             [com.eldrix.codelists.core :as codelists]
             [com.eldrix.dmd.core :as dmd]
             [com.eldrix.hermes.core :as hermes]
-            [io.pedestal.http :as http]
+            [io.pedestal.connector :as conn]
             [io.pedestal.http.content-negotiation :as conneg]
+            [io.pedestal.http.cors :as cors]
+            [io.pedestal.http.jetty :as jetty]
             [io.pedestal.http.route :as route]
+            [io.pedestal.http.secure-headers :as sec-headers]
             [io.pedestal.interceptor :as intc]
-            [io.pedestal.interceptor.error :as intc-err])
+            [io.pedestal.service.interceptors :as interceptors])
   (:import (java.time LocalDate)
            (java.time.format DateTimeFormatter)))
 
@@ -52,108 +56,112 @@
       (assoc-in [:headers "Content-Type"] content-type)))
 
 (def coerce-body
-  {:name ::coerce-body
-   :leave
-   (fn [context]
-     (if (get-in context [:response :headers "Content-Type"])
-       context
-       (update-in context [:response] coerce-to (accepted-type context))))})
+  (intc/interceptor
+    {:name ::coerce-body
+     :leave
+     (fn [context]
+       (if (get-in context [:response :headers "Content-Type"])
+         context
+         (update-in context [:response] coerce-to (accepted-type context))))}))
 
 (defn inject-env
   "A simple interceptor to inject an environment into the context."
   [env]
-  {:name  ::inject-env
-   :enter (fn [context] (update context :request assoc ::env env))})
+  (intc/interceptor
+    {:name  ::inject-env
+     :enter (fn [context] (update context :request assoc ::env env))}))
 
 (def entity-render
   "Interceptor to render an entity '(:result context)' into the response."
-  {:name :entity-render
-   :leave
-   (fn [context]
-     (if-let [item (:result context)]
-       (assoc context :response (ok item))
-       context))})
+  (intc/interceptor
+    {:name :entity-render
+     :leave
+     (fn [context]
+       (if-let [item (:result context)]
+         (assoc context :response (ok item))
+         context))}))
 
 (def as-lookup
   {"names" (fn [{:com.eldrix/keys [hermes]} codes]
              (map #(hash-map :id % :term (:term (hermes/get-preferred-synonym hermes % "en-GB"))) codes))})
 
 (def expand
-  {:name  ::expand
-   :enter (fn [ctx]
-            (let [s (get-in ctx [:request :params :s])
-                  as (get-in ctx [:request :params :as])
-                  env (get-in ctx [:request ::env])]
-              (when-not (str/blank? s)
-                (let [concept-ids (codelists/realize-concepts env (codelists/parse-json s))]
-                  (if (str/blank? as)
-                    (assoc ctx :result concept-ids)
-                    (when-let [as-f (get as-lookup (str/lower-case as))]
-                      (assoc ctx :result (as-f env concept-ids))))))))})
+  (intc/interceptor
+    {:name  ::expand
+     :enter (fn [ctx]
+              (let [s (get-in ctx [:request :params :s])
+                    as (get-in ctx [:request :params :as])
+                    env (get-in ctx [:request ::env])]
+                (when-not (str/blank? s)
+                  (let [concept-ids (codelists/realize-concepts env (codelists/parse-json s))]
+                    (if (str/blank? as)
+                      (assoc ctx :result concept-ids)
+                      (when-let [as-f (get as-lookup (str/lower-case as))]
+                        (assoc ctx :result (as-f env concept-ids))))))))}))
 
 (def status
-  {:name  ::status
-   :enter (fn [ctx]
-            (let [{::keys [status]} (get-in ctx [:request ::env])]
-              (assoc ctx :result status)))})
-
-(def common-routes [coerce-body content-neg-intc entity-render])
+  (intc/interceptor
+    {:name  ::status
+     :enter (fn [ctx]
+              (let [{::keys [status]} (get-in ctx [:request ::env])]
+                (assoc ctx :result status)))}))
 
 (def service-error-handler
-  (intc-err/error-dispatch
-    [context err]
+  (intc/interceptor
+    {:name  ::error
+     :error (fn [ctx err]
+              (match/match [(ex-data err)]
+                [{:exception-type :java.lang.Exception :interceptor ::expand}]
+                (assoc ctx :response {:status 400 :body (str "invalid parameters: " (ex-message (ex-cause err)))})
 
-    [{:exception-type :java.lang.Exception :interceptor ::expand}]
-    (assoc context :response {:status 400 :body (str "invalid parameters: " (ex-message (:exception (ex-data err))))})
-
-    :else
-    (assoc context :io.pedestal.interceptor.chain/error err)))
+                :else
+                (assoc ctx :io.pedestal.interceptor.chain/error err)))}))
 
 (def routes
-  (route/expand-routes
-    #{["/v1/codelists/expand" :get (conj common-routes service-error-handler expand)]
-      ["/v1/codelists/status" :get (conj common-routes status)]}))
+  #{["/v1/codelists/expand" :get expand]
+    ["/v1/codelists/status" :get status]})
 
-(def service-map
-  {::http/routes routes
-   ::http/type   :jetty
-   ::http/port   8080})
-
-(defn start-server
-  "Start a codelists HTTP server.
+(defn create-connector
+  "Create a codelists HTTP connector.
   Parameters:
+  - env             : environment map with hermes and dmd
   - port            : (optional) port to use, default 8080
   - bind-address    : (optional) bind address
   - allowed-origins : (optional) a sequence of strings of hostnames or function
   - join?           : whether to join server thread or return"
-  ([{:com.eldrix/keys [hermes dmd] :as env} {:keys [port bind-address allowed-origins join?] :as opts :or {join? true}}]
-   (Thread/setDefaultUncaughtExceptionHandler
-     (reify Thread$UncaughtExceptionHandler
-       (uncaughtException [_ thread ex]
-         (log/error ex "Uncaught exception on" (.getName thread)))))
-   (let [cfg (cond-> {}
-               port (assoc ::http/port port)
-               bind-address (assoc ::http/host bind-address)
-               allowed-origins (assoc ::http/allowed-origins allowed-origins))]
-     (-> (merge service-map cfg)
-         (assoc ::http/join? join?)
-         (http/default-interceptors)
-         (update ::http/interceptors conj (intc/interceptor (inject-env env)))
-         http/create-server
-         http/start))))
+  [env {:keys [port bind-address allowed-origins join?]
+        :or   {port 8080 join? true bind-address "localhost"}}]
+  (-> (conn/default-connector-map bind-address port)
+      (conn/optionally-with-dev-mode-interceptors)
+      (conn/with-interceptors
+        [(cors/allow-origin allowed-origins)
+         interceptors/not-found
+         (inject-env env)
+         route/query-params
+         route/path-params-decoder
+         (sec-headers/secure-headers {})
+         coerce-body
+         service-error-handler
+         content-neg-intc
+         entity-render])
+      (conn/with-routes routes)
+      (jetty/create-connector {:join? join?})))
 
-(defn stop-server [server]
-  (http/stop server))
+(defn start! [env config]
+  (conn/start! (create-connector env config)))
+
+(defn stop! [connector]
+  (conn/stop! connector))
 
 ;; For interactive development
 (defonce server (atom nil))
 
 (defn start-dev [svc port]
   (reset! server
-          (start-server svc {:port port :join? false})))
+          (start! svc {:port port :join? false})))
 
 (defn stop-dev []
-  (http/stop @server))
+  (stop! @server))
 
 (defn serve [{:keys [hermes dmd _port _bind-address allowed-origins] :as params} _]
   (if (and hermes dmd)
@@ -166,9 +174,9 @@
           status {:hermes (map :term (hermes/release-information hermes'))
                   :dmd    {:releaseDate (dmd/fetch-release-date dmd')}}]
       (log/info "starting codelists server " params')
-      (start-server {:com.eldrix/hermes hermes'
-                     :com.eldrix/dmd    dmd'
-                     ::status           status} params'))
+      (start! {:com.eldrix/hermes hermes'
+               :com.eldrix/dmd    dmd'
+               ::status           status} params'))
     (log/error "Both hermes and dmd database directories must be specified." params)))
 
 (def cli-options
@@ -229,4 +237,3 @@
       :else (invoke-command command options (rest arguments)))))
 
 (comment)
-
